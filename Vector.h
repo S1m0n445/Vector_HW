@@ -4,6 +4,27 @@
 #include <initializer_list>
 #include <stdexcept>
 #include <utility>
+#include <memory>
+#include <new>
+
+template <typename T>
+struct VectorBase
+{
+    T* data_;
+    std::size_t capacity_;
+
+    explicit VectorBase(std::size_t capacity = 0)
+        : data_(capacity ? std::allocator<T>().allocate(capacity) : nullptr),
+        capacity_(capacity) {}
+
+    ~VectorBase()
+    {
+        if (data_)
+        {
+            std::allocator<T>().deallocate(data_, capacity_);
+        }
+    }
+};
 
 class Vector
 {
@@ -134,3 +155,4 @@ inline const double& Vector::operator[](std::size_t index) const
 {
     return data_[index];
 }
+

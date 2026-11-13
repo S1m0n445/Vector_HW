@@ -3,25 +3,25 @@
 #include <cstddef>
 #include <stdexcept>
 
-class Vector
+class Vector1
 {
 private:
     std::size_t size_;
     double* data_;
 
 public:
-    Vector();
-    Vector(std::size_t size, double value = 0.0);
-    ~Vector();
+    Vector1();
+    Vector1(std::size_t size, double value = 0.0);
+    ~Vector1();
     std::size_t size() const;
     double& at(std::size_t index);
     double& operator[](std::size_t index);
 };
 
-inline Vector::Vector()
+inline Vector1::Vector1()
     : size_(0), data_(nullptr){}
 
-inline Vector::Vector(std::size_t size, double value)
+inline Vector1::Vector1(std::size_t size, double value)
     : size_(size), data_(new double[size])
 {
     for (std::size_t i = 0; i < size_; ++i)
@@ -30,17 +30,17 @@ inline Vector::Vector(std::size_t size, double value)
     }
 }
 
-inline Vector::~Vector()
+inline Vector1::~Vector1()
 {
     delete[] data_;
 }
 
-inline std::size_t Vector::size() const
+inline std::size_t Vector1::size() const
 {
     return size_;
 }
 
-inline double& Vector::at(std::size_t index)
+inline double& Vector1::at(std::size_t index)
 {
     if (index >= size_)
     {
@@ -48,7 +48,7 @@ inline double& Vector::at(std::size_t index)
     }
 }
 
-inline double& Vector::operator[](std::size_t index)
+inline double& Vector1::operator[](std::size_t index)
 {
     return data_[index];
 }
