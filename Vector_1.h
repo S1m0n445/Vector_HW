@@ -14,8 +14,8 @@ public:
     Vector1(std::size_t size, double value = 0.0);
     ~Vector1();
     std::size_t size() const;
-    double& at(std::size_t index);
-    double& operator[](std::size_t index);
+    const double& get(std::size_t index) const;
+    void set(std::size_t index, double value);
 };
 
 inline Vector1::Vector1()
@@ -40,15 +40,20 @@ inline std::size_t Vector1::size() const
     return size_;
 }
 
-inline double& Vector1::at(std::size_t index)
+inline const double& Vector1::get(std::size_t index) const
 {
     if (index >= size_)
     {
         throw std::out_of_range("Index must be from 0 to (size - 1)");
     }
+    return data_[index];
 }
 
-inline double& Vector1::operator[](std::size_t index)
+inline void Vector1::set(std::size_t index, double value)
 {
-    return data_[index];
+    if (index >= size_)
+        {
+            throw std::out_of_range("Index must be from 0 to (size - 1)");
+        }
+    data_[index] = value;
 }

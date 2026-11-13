@@ -26,7 +26,19 @@ public:
     const double& at(std::size_t index) const;
     double& operator[](std::size_t index);
     const double& operator[](std::size_t index) const;
+    double* begin();
+    double* end();
 };
+
+inline double* Vector2::begin()
+{
+    return data_;
+}
+
+inline double* Vector2::end()
+{
+    return data_ + size_;
+}
 
 inline Vector2::Vector2() : size_(0), data_(nullptr) {}
 
