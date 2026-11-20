@@ -1,6 +1,7 @@
 #include <iostream>
 #include "Vector_1.h"
 #include "Vector_2.h"
+#include "Vector.h"
 #include <algorithm>
 
 
@@ -63,6 +64,17 @@ int main(){
         std::cout << n[i] << " ";
     }
     std::cout << "\n";
+    std::cout << "===============================================" << std::endl;
+    
+    std::cout << "=============== Vector tests ===============" << std::endl;
+
+    Vector fst(3, 6.7);
+    Vector snd(fst);
+    fst.print();
+    std::cout << &fst[0] << "\n";
+    snd.print();
+    std::cout << &snd[0] << "\n";
+
     std::cout << "===============================================" << std::endl;
 
     return 0;

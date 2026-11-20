@@ -2,10 +2,10 @@
 
 #include <cstddef>
 #include <initializer_list>
-#include <stdexcept>
-#include <utility>
 #include <memory>
 #include <new>
+#include <stdexcept>
+#include <utility>
 
 template <typename T>
 struct VectorBase
@@ -15,7 +15,7 @@ struct VectorBase
 
     explicit VectorBase(std::size_t capacity = 0)
         : data_(capacity ? std::allocator<T>().allocate(capacity) : nullptr),
-        capacity_(capacity) {}
+          capacity_(capacity) {}
 
     ~VectorBase()
     {
@@ -24,135 +24,345 @@ struct VectorBase
             std::allocator<T>().deallocate(data_, capacity_);
         }
     }
+
+    VectorBase(const VectorBase&) = delete;
+    VectorBase& operator=(const VectorBase&) = delete;
+
+    void swap(VectorBase& other) noexcept
+    {
+        std::swap(data_, other.data_);
+        std::swap(capacity_, other.capacity_);
+    }
 };
 
+template <typename T>
 class Vector
 {
 private:
+    VectorBase<T> base_;
     std::size_t size_;
-    double* data_;
+
+    T* data() noexcept { return base_.data_; }
+    const T* data() const noexcept { return base_.data_; }
+    void destroy_elements() noexcept;
 
 public:
-    Vector();
-    explicit Vector(std::size_t size, double value = 0.0);
-    Vector(std::initializer_list<double> list);
+    using value_type = T;
+
+    Vector() noexcept;
+    explicit Vector(std::size_t size, const T& value = T());
+    Vector(std::initializer_list<T> list);
     Vector(const Vector& other);
     Vector(Vector&& other) noexcept;
     Vector& operator=(const Vector& other);
     Vector& operator=(Vector&& other) noexcept;
     ~Vector();
 
-    std::size_t size() const;
-    double& at(std::size_t index);
-    const double& at(std::size_t index) const;
-    double& operator[](std::size_t index);
-    const double& operator[](std::size_t index) const;
+    std::size_t size() const noexcept;
+    std::size_t capacity() const noexcept;
+    bool empty() const noexcept;
+
+    T get(std::size_t index) const;
+    void set(std::size_t index, const T& value);
+
+    T& at(std::size_t index);
+    const T& at(std::size_t index) const;
+    T& operator[](std::size_t index);
+    const T& operator[](std::size_t index) const;
+
+    void reserve(std::size_t new_capacity);
+    void resize(std::size_t new_size, T value = T());
+    void push_back(const T& value);
+    void push_back(T&& value);
+    void pop_back();
+    void clear() noexcept;
+    void swap(Vector& other) noexcept;
+    void print() const;
+
+    T* begin() noexcept { return data(); }
+    T* end() noexcept { return data() + size_; }
+    const T* begin() const noexcept { return data(); }
+    const T* end() const noexcept { return data() + size_; }
 };
 
-inline Vector::Vector() : size_(0), data_(nullptr) {}
-
-inline Vector::Vector(std::size_t size, double value)
-    : size_(size), data_(new double[size])
+template <typename T>
+inline void Vector<T>::destroy_elements() noexcept
 {
-    for (std::size_t i = 0; i < size_; ++i)
+    std::destroy(data(), data() + size_);
+    size_ = 0;
+}
+
+template <typename T>
+inline Vector<T>::Vector() noexcept : base_(0), size_(0) {}
+
+template <typename T>
+inline Vector<T>::Vector(std::size_t size, const T& value)
+    : base_(size), size_(0)
+{
+    try
     {
-        data_[i] = value;
+        for (; size_ < size; ++size_)
+        {
+            ::new (static_cast<void*>(data() + size_)) T(value);
+        }
+    }
+    catch (...)
+    {
+        destroy_elements();
+        throw;
     }
 }
 
-inline Vector::Vector(std::initializer_list<double> list)
-    : size_(list.size()), data_(new double[list.size()])
+template <typename T>
+inline Vector<T>::Vector(std::initializer_list<T> list)
+    : base_(list.size()), size_(0)
 {
-    std::size_t i = 0;
-    for (double x : list)
+    try
     {
-        data_[i++] = x;
+        for (const T& x : list)
+        {
+            ::new (static_cast<void*>(data() + size_)) T(x);
+            ++size_;
+        }
+    }
+    catch (...)
+    {
+        destroy_elements();
+        throw;
     }
 }
 
-inline Vector::Vector(const Vector& other)
-    : size_(other.size_), data_(new double[other.size_])
+template <typename T>
+inline Vector<T>::Vector(const Vector& other)
+    : base_(other.size_), size_(0)
 {
-    for (std::size_t i = 0; i < size_; ++i)
+    try
     {
-        data_[i] = other.data_[i];
+        for (; size_ < other.size_; ++size_)
+        {
+            ::new (static_cast<void*>(data() + size_)) T(other.data()[size_]);
+        }
+    }
+    catch (...)
+    {
+        destroy_elements();
+        throw;
     }
 }
 
-inline Vector::Vector(Vector&& other) noexcept
-    : size_(other.size_), data_(other.data_)
+template <typename T>
+inline Vector<T>::Vector(Vector&& other) noexcept : base_(0), size_(0)
 {
-    other.size_ = 0;
-    other.data_ = nullptr;
+    swap(other);
 }
 
-inline Vector& Vector::operator=(const Vector& other)
-{
-    if (this == &other)
-    {
-        return *this;
-    }
-
-    double* new_data = new double[other.size_];
-    for (std::size_t i = 0; i < other.size_; ++i)
-    {
-        new_data[i] = other.data_[i];
-    }
-
-    delete[] data_;
-    data_ = new_data;
-    size_ = other.size_;
-    return *this;
-}
-
-inline Vector& Vector::operator=(Vector&& other) noexcept
+template <typename T>
+inline Vector<T>& Vector<T>::operator=(const Vector& other)
 {
     if (this != &other)
     {
-        delete[] data_;
-        data_ = other.data_;
-        size_ = other.size_;
-        other.data_ = nullptr;
-        other.size_ = 0;
+        Vector tmp(other);
+        swap(tmp);
     }
     return *this;
 }
 
-inline Vector::~Vector()
+template <typename T>
+inline Vector<T>& Vector<T>::operator=(Vector&& other) noexcept
 {
-    delete[] data_;
+    if (this != &other)
+    {
+        Vector tmp(std::move(other));
+        swap(tmp);
+    }
+    return *this;
 }
 
-inline std::size_t Vector::size() const
+template <typename T>
+inline Vector<T>::~Vector()
+{
+    destroy_elements();
+}
+
+template <typename T>
+inline std::size_t Vector<T>::size() const noexcept
 {
     return size_;
 }
 
-inline double& Vector::at(std::size_t index)
+template <typename T>
+inline std::size_t Vector<T>::capacity() const noexcept
+{
+    return base_.capacity_;
+}
+
+template <typename T>
+inline bool Vector<T>::empty() const noexcept
+{
+    return size_ == 0;
+}
+
+template <typename T>
+inline T& Vector<T>::at(std::size_t index)
 {
     if (index >= size_)
     {
         throw std::out_of_range("Vector::at: index >= size");
     }
-    return data_[index];
+    return data()[index];
 }
 
-inline const double& Vector::at(std::size_t index) const
+template <typename T>
+inline const T& Vector<T>::at(std::size_t index) const
 {
     if (index >= size_)
     {
         throw std::out_of_range("Vector::at: index >= size");
     }
-    return data_[index];
+    return data()[index];
 }
 
-inline double& Vector::operator[](std::size_t index)
+template <typename T>
+inline T& Vector<T>::operator[](std::size_t index)
 {
-    return data_[index];
+    return data()[index];
 }
 
-inline const double& Vector::operator[](std::size_t index) const
+template <typename T>
+inline const T& Vector<T>::operator[](std::size_t index) const
 {
-    return data_[index];
+    return data()[index];
 }
 
+template <typename T>
+inline void Vector<T>::reserve(std::size_t new_capacity)
+{
+    if (new_capacity <= capacity())
+    {
+        return;
+    }
+
+    VectorBase<T> new_base(new_capacity);
+    std::size_t i = 0;
+    try
+    {
+        for (; i < size_; ++i)
+        {
+
+            ::new (static_cast<void*>(new_base.data_ + i))
+                T(std::move_if_noexcept(data()[i]));
+        }
+    }
+    catch (...)
+    {
+        std::destroy(new_base.data_, new_base.data_ + i);
+        throw;
+    }
+
+    std::destroy(data(), data() + size_);
+    base_.swap(new_base);
+}
+
+template <typename T>
+inline void Vector<T>::resize(std::size_t new_size, T value)
+{
+    if (new_size < size_)
+    {
+        std::destroy(data() + new_size, data() + size_);
+        size_ = new_size;
+        return;
+    }
+
+    if (new_size > capacity())
+    {
+        reserve(new_size);
+    }
+
+    const std::size_t old_size = size_;
+    try
+    {
+        for (; size_ < new_size; ++size_)
+        {
+            ::new (static_cast<void*>(data() + size_)) T(value);
+        }
+    }
+    catch (...)
+    {
+        std::destroy(data() + old_size, data() + size_);
+        size_ = old_size;
+        throw;
+    }
+}
+
+template <typename T>
+inline void Vector<T>::push_back(T&& value)
+{
+    if (size_ == capacity())
+    {
+        reserve(capacity() == 0 ? 1 : capacity() * 2);
+    }
+    ::new (static_cast<void*>(data() + size_)) T(std::move(value));
+    ++size_;
+}
+
+template <typename T>
+inline void Vector<T>::push_back(const T& value)
+{
+
+    T tmp(value);
+    push_back(std::move(tmp));
+}
+
+template <typename T>
+inline void Vector<T>::pop_back()
+{
+    if (size_ == 0)
+    {
+        throw std::out_of_range("Vector::pop_back: empty vector");
+    }
+    std::destroy_at(data() + size_ - 1);
+    --size_;
+}
+
+template <typename T>
+inline void Vector<T>::clear() noexcept
+{
+    destroy_elements();
+}
+
+template <typename T>
+inline void Vector<T>::swap(Vector& other) noexcept
+{
+    base_.swap(other.base_);
+    std::swap(size_, other.size_);
+}
+
+template <typename T>
+inline T Vector<T>::get(std::size_t index) const
+{
+    if (index >= size_)
+    {
+        throw std::out_of_range("Vector::get: index >= size");
+    }
+    return data()[index];
+}
+
+template <typename T>
+inline void Vector<T>::set(std::size_t index, const T& value)
+{
+    if (index >= size_)
+    {
+        throw std::out_of_range("Vector::set: index >= size");
+    }
+    data()[index] = value;
+}
+
+template <typename T>
+inline void Vector<T>::print() const
+{
+    for (std::size_t i = 0; i < size_; ++i)
+    {
+        std::cout << data()[i] << " ";
+    }
+    std::cout << "\n";
+}
